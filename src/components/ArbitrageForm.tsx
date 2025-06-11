@@ -27,11 +27,11 @@ const formSchema = z.object({
   arbitrageCoinFrom: z.string().min(1, "Source coin is required."),
   arbitrageCoinTo: z.string().min(1, "Target coin is required."),
   amountFrom: z.coerce.number().positive("Amount must be positive.").optional(),
-  amountTo: z.coerce.number().positive("Amount must be positive.").optional(), // New field for target amount
+  amountTo: z.coerce.number().positive("Amount must be positive.").optional(),
   gasFeeAmount: z.coerce.number().positive("Gas fee budget must be positive.").optional(),
 }).refine(data => data.amountFrom || data.amountTo || data.gasFeeAmount, {
   message: "Either Source Amount, Target Amount, or Gas Fee Budget must be provided.",
-  path: ["amountFrom"], // Error shown under the first amount field or gas fee if both amounts are empty
+  path: ["amountFrom"], 
 }).refine(data => data.arbitrageCoinFrom !== data.arbitrageCoinTo, {
   message: "Source and Target coins must be different.",
   path: ["arbitrageCoinTo"],
@@ -124,7 +124,7 @@ export default function ArbitrageForm() {
 
   const handleFormSubmit = async (values: ArbitrageFormValues) => {
     if (isExecuted) {
-      form.reset({ // Reset with default values, explicitly undefined for optionals
+      form.reset({ 
           network: NETWORK_OPTIONS[0]?.value || '',
           borrowingProtocol: BORROWING_PROTOCOL_OPTIONS[0]?.value || '',
           arbitrageFromSwap: ARBITRAGE_FROM_SWAP_OPTIONS[0]?.value || '',
@@ -137,19 +137,19 @@ export default function ArbitrageForm() {
       });
       setIsLoading(false);
       setIsExecuted(false);
-      // States like estimatedProfitDisplay, gasFeeDisplay, showGasInput will be reset by useEffect
       toast({ title: "Form Reset", description: "Ready for new arbitrage configuration." });
       return;
     }
 
     setIsLoading(true);
-    // Simulate execution
+    console.log("Simulating arbitrage execution with values:", values);
+    
     setTimeout(() => {
       setIsLoading(false);
       setIsExecuted(true);
       toast({
         title: "Arbitrage Executed! (Simulated)",
-        description: `Trade for ${values.amountFrom ? values.amountFrom : values.amountTo} ${values.amountFrom ? values.arbitrageCoinFrom : values.arbitrageCoinTo} processed.`,
+        description: `Trade for ${values.amountFrom ? values.amountFrom + " " + (COIN_OPTIONS.find(c=>c.value === values.arbitrageCoinFrom)?.label || values.arbitrageCoinFrom) : values.amountTo + " " + (COIN_OPTIONS.find(c=>c.value === values.arbitrageCoinTo)?.label || values.arbitrageCoinTo)} processed. Estimated Profit: ${estimatedProfitDisplay}`,
       });
     }, 1500);
   };
@@ -164,7 +164,7 @@ export default function ArbitrageForm() {
                 field.onChange(value);
             }} defaultValue={field.value}>
               <FormControl>
-                <SelectTrigger className="custom-btn !text-left !justify-between !text-base !text-primary !bg-background !border !border-primary !shadow-primary-glow-sm hover:!shadow-primary-glow-md focus:!ring-ring">
+                <SelectTrigger className="custom-btn !justify-center [&_svg]:hidden !text-base !text-primary !bg-background !border !border-primary !shadow-primary-glow-sm hover:!shadow-primary-glow-md focus:!ring-ring">
                   <SelectValue placeholder={placeholder} />
                 </SelectTrigger>
               </FormControl>
@@ -266,7 +266,7 @@ export default function ArbitrageForm() {
                                else if (gasValue <= 50) suggestedAmount = 2000;
                                else suggestedAmount = 5000;
                                form.setValue('amountFrom', suggestedAmount, { shouldValidate: true });
-                               form.setValue('amountTo', suggestedAmount, { shouldValidate: true });
+                               form.setValue('amountTo', suggestedAmount, { shouldValidate: true }); // Also set amountTo
                            }
                         }
                       }}
