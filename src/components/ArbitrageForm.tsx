@@ -1,16 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { smartArbitrageSuggestion, type SmartArbitrageSuggestionOutput } from '@/ai/flows/smart-arbitrage-suggestion';
 import { Button } from '@/components/ui/button';
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import SuggestionDisplay from './SuggestionDisplay'; // Will be shown below the form
 import { 
   NETWORK_OPTIONS, 
   BORROWING_PROTOCOL_OPTIONS, 
@@ -18,7 +16,7 @@ import {
   ARBITRAGE_TO_SWAP_OPTIONS,
   COIN_OPTIONS
 } from '@/lib/constants';
-import { Loader2, BarChartBig, RotateCcw } from 'lucide-react';
+import { BarChartBig, RotateCcw, Loader2 } from 'lucide-react';
 
 const formSchema = z.object({
   network: z.string().min(1, "Network selection is required."),
@@ -31,7 +29,7 @@ const formSchema = z.object({
   gasFeeAmount: z.coerce.number().positive("Gas fee budget must be positive.").optional(),
 }).refine(data => data.amountFrom || data.gasFeeAmount, {
   message: "Either Amount or Gas Fee Budget must be provided.",
-  path: ["amountFrom"], // You can point to one or a general path
+  path: ["amountFrom"],
 }).refine(data => data.arbitrageCoinFrom !== data.arbitrageCoinTo, {
   message: "Source and Target coins must be different.",
   path: ["arbitrageCoinTo"],
@@ -43,10 +41,8 @@ const formSchema = z.object({
 type ArbitrageFormValues = z.infer<typeof formSchema>;
 
 export default function ArbitrageForm() {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false); // Kept for simulating processing
   const [isExecuted, setIsExecuted] = useState(false);
-  const [suggestion, setSuggestion] = useState<SmartArbitrageSuggestionOutput | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [estimatedProfitDisplay, setEstimatedProfitDisplay] = useState<string>('$0.00');
   const [gasFeeDisplay, setGasFeeDisplay] = useState<string>('$0.00');
   const [showGasInput, setShowGasInput] = useState(true);
@@ -61,51 +57,47 @@ export default function ArbitrageForm() {
       arbitrageFromSwap: ARBITRAGE_FROM_SWAP_OPTIONS[0]?.value || '',
       arbitrageToSwap: ARBITRAGE_TO_SWAP_OPTIONS[0]?.value || '',
       arbitrageCoinFrom: COIN_OPTIONS[0]?.value || '',
-      arbitrageCoinTo: COIN_OPTIONS[1]?.value || '', // Ensure different default
+      arbitrageCoinTo: COIN_OPTIONS[1]?.value || '',
     },
   });
 
   const watchAmountFrom = form.watch('amountFrom');
-  const watchGasFeeAmount = form.watch('gasFeeAmount');
+  const watchedCoinFrom = form.watch('arbitrageCoinFrom');
+  // const watchGasFeeAmount = form.watch('gasFeeAmount'); // Not directly used in button text anymore
 
   useEffect(() => {
-    if (watchAmountFrom && watchAmountFrom > 0) {
+    const currentAmountFrom = form.getValues('amountFrom');
+    const currentNetwork = form.getValues('network');
+    const currentArbitrageFromSwap = form.getValues('arbitrageFromSwap');
+    const currentArbitrageToSwap = form.getValues('arbitrageToSwap');
+    const currentCoinFrom = form.getValues('arbitrageCoinFrom');
+    const currentCoinTo = form.getValues('arbitrageCoinTo');
+    
+    if (currentAmountFrom && currentAmountFrom > 0) {
       setShowGasInput(false);
-      // Simulate client-side fee calculation based on HTML logic (simplified)
-      const networkFee = form.getValues('network') === 'ethereum' ? 50 : 10;
-      const dexFee = watchAmountFrom * 0.003; // Simplified
-      setGasFeeDisplay(`$${(networkFee + dexFee).toFixed(2)}`);
+      const networkFee = currentNetwork === 'ethereum' ? 50 : (currentNetwork === 'arbitrum' || currentNetwork === 'optimism' ? 5 : (currentNetwork === 'polygon' ? 1 : 10));
+      const dexFee = (currentArbitrageFromSwap && currentArbitrageToSwap && currentAmountFrom > 0) ? ((currentArbitrageFromSwap === 'uniswap' || currentArbitrageToSwap === 'uniswap') ? 0.003 * currentAmountFrom : 0.002 * currentAmountFrom) : 0;
+      const totalFees = networkFee + dexFee;
+      setGasFeeDisplay(`$${totalFees.toFixed(2)}`);
     } else {
       setShowGasInput(true);
       setGasFeeDisplay('$0.00');
     }
-    // Simple profit calculation for display, AI will provide more accurate
-    if (watchAmountFrom) {
-        const priceDiff = 0.03; // Highly simplified placeholder
-        const grossProfit = watchAmountFrom * priceDiff;
-        const gasFee = parseFloat(gasFeeDisplay.replace(/[^0-9.]/g, '')) || 0;
-        setEstimatedProfitDisplay(`$${(grossProfit - gasFee).toFixed(2)}`);
-    } else {
-        setEstimatedProfitDisplay('$0.00');
-    }
 
-  }, [watchAmountFrom, form, gasFeeDisplay]);
-  
-  useEffect(() => {
-    if (suggestion) {
-        setEstimatedProfitDisplay(`$${suggestion.estimatedProfit.toLocaleString()}`);
-        if (suggestion.suggestedAmount && showGasInput){ // AI suggested amount
-             form.setValue('amountFrom', suggestion.suggestedAmount);
-        }
+    let priceDiff = 0;
+    if (currentCoinFrom && currentCoinTo && currentCoinFrom !== currentCoinTo) {
+      priceDiff = (currentArbitrageFromSwap === 'uniswap' && currentArbitrageToSwap === 'sushiswap') ? 0.05 : 0.03;
     }
-  }, [suggestion, form, showGasInput]);
+    const grossProfit = (currentAmountFrom || 0) * priceDiff;
+    const gasFeeNumber = parseFloat(gasFeeDisplay.replace(/[^0-9.]/g, '')) || parseFloat(form.getValues('gasFeeAmount')?.toString() || '0') || 0;
+    
+    setEstimatedProfitDisplay(`$${(grossProfit - gasFeeNumber).toFixed(2)}`);
 
+  }, [form, gasFeeDisplay]); // Re-run when form values affecting fees/profit change
 
   const handleFormSubmit = async (values: ArbitrageFormValues) => {
-    if (isExecuted) { // Reset form
+    if (isExecuted) {
       form.reset();
-      setSuggestion(null);
-      setError(null);
       setIsLoading(false);
       setIsExecuted(false);
       setEstimatedProfitDisplay('$0.00');
@@ -116,39 +108,15 @@ export default function ArbitrageForm() {
     }
 
     setIsLoading(true);
-    setSuggestion(null);
-    setError(null);
-
-    const tokenPair = `${values.arbitrageCoinFrom}/${values.arbitrageCoinTo}`;
-    const dexs = [values.arbitrageFromSwap, values.arbitrageToSwap];
-
-    try {
-      const result = await smartArbitrageSuggestion({
-        network: values.network,
-        borrowingProtocol: values.borrowingProtocol,
-        dexs: dexs,
-        tokenPair: tokenPair,
-        availableLiquidity: values.amountFrom || 0, // AI needs one amount
-        gasBudget: values.gasFeeAmount || parseFloat(gasFeeDisplay.replace(/[^0-9.]/g, '')) || 0,
-      });
-      setSuggestion(result);
-      setIsExecuted(true); // Mark as "executed" to show reset button
-      toast({
-        title: "Suggestion Generated!",
-        description: "AI has provided an arbitrage suggestion.",
-      });
-    } catch (err) {
-      console.error("Error fetching suggestion:", err);
-      const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
-      setError(errorMessage);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: `Failed to generate suggestion: ${errorMessage}`,
-      });
-    } finally {
+    // Simulate execution
+    setTimeout(() => {
       setIsLoading(false);
-    }
+      setIsExecuted(true);
+      toast({
+        title: "Arbitrage Executed! (Simulated)",
+        description: "Your trade has been processed.",
+      });
+    }, 1500);
   };
   
   const renderSelect = (name: keyof ArbitrageFormValues, placeholder: string, options: {value: string, label: string}[]) => (
@@ -156,22 +124,25 @@ export default function ArbitrageForm() {
         control={form.control}
         name={name}
         render={({ field }) => (
-          <FormItem className="w-full">
-            <Select onValueChange={field.onChange} defaultValue={field.value}>
+          <FormItem className="w-full form-item-center">
+            <Select onValueChange={(value) => {
+                field.onChange(value);
+                form.trigger(); // Trigger re-validation and re-calculation
+            }} defaultValue={field.value}>
               <FormControl>
                 <SelectTrigger className="custom-btn !text-left !justify-between !text-base !text-primary !bg-background !border !border-primary !shadow-primary-glow-sm hover:!shadow-primary-glow-md focus:!ring-ring">
                   <SelectValue placeholder={placeholder} />
                 </SelectTrigger>
               </FormControl>
-              <SelectContent className="bg-background border-primary text-primary">
+              <SelectContent className="bg-background border-primary text-primary text-center">
                 {options.map((option) => (
-                  <SelectItem key={option.value} value={option.value} className="hover:!bg-primary/20 focus:!bg-primary/30">
+                  <SelectItem key={option.value} value={option.value} className="hover:!bg-primary/20 focus:!bg-primary/30 text-center justify-center">
                     {option.label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <FormMessage className="text-accent" />
+            <FormMessage className="text-accent text-center" />
           </FormItem>
         )}
       />
@@ -192,17 +163,20 @@ export default function ArbitrageForm() {
             control={form.control}
             name="amountFrom"
             render={({ field }) => (
-              <FormItem className="w-full">
+              <FormItem className="w-full form-item-center">
                 <FormControl>
                   <Input 
                     type="number" 
-                    placeholder="Enter amount (e.g. Source Coin)" 
+                    placeholder={`Enter amount (${watchedCoinFrom || COIN_OPTIONS.find(c => c.value === form.getValues().arbitrageCoinFrom)?.label || 'Source Coin'})`}
                     {...field} 
-                    onChange={e => field.onChange(parseFloat(e.target.value))}
-                    className="custom-btn !text-base !text-primary !bg-background !border !border-primary !shadow-primary-glow-sm hover:!shadow-primary-glow-md focus:!ring-ring"
+                    onChange={e => {
+                        field.onChange(parseFloat(e.target.value));
+                        form.trigger(); // Trigger re-validation and re-calculation
+                    }}
+                    className="custom-btn !text-base !text-primary !bg-background !border !border-primary !shadow-primary-glow-sm hover:!shadow-primary-glow-md focus:!ring-ring text-center"
                   />
                 </FormControl>
-                <FormMessage className="text-accent" />
+                <FormMessage className="text-accent text-center" />
               </FormItem>
             )}
           />
@@ -212,17 +186,33 @@ export default function ArbitrageForm() {
               control={form.control}
               name="gasFeeAmount"
               render={({ field }) => (
-                <FormItem className="w-full">
+                <FormItem className="w-full form-item-center">
                   <FormControl>
                     <Input 
                       type="number" 
                       placeholder="Enter gas fee budget (USD)" 
                       {...field} 
-                      onChange={e => field.onChange(parseFloat(e.target.value))}
-                      className="custom-btn !text-base !text-primary !bg-background !border !border-primary !shadow-primary-glow-sm hover:!shadow-primary-glow-md focus:!ring-ring"
+                      onChange={e => {
+                        field.onChange(parseFloat(e.target.value));
+                         form.trigger(); // Trigger re-validation and re-calculation
+                         // If gas fee is entered and no amount, simulate adjustArbitrage logic from HTML
+                         const currentAmountFrom = form.getValues('amountFrom');
+                         if (!currentAmountFrom || currentAmountFrom <= 0) {
+                            const gasValue = parseFloat(e.target.value);
+                            if (gasValue > 0) {
+                                let suggestedAmount = 0;
+                                if (gasValue <= 10) suggestedAmount = 500;
+                                else if (gasValue <= 50) suggestedAmount = 2000;
+                                else suggestedAmount = 5000;
+                                form.setValue('amountFrom', suggestedAmount, { shouldValidate: true });
+                                setShowGasInput(false); // Hide gas input as amount is now set
+                            }
+                         }
+                      }}
+                      className="custom-btn !text-base !text-primary !bg-background !border !border-primary !shadow-primary-glow-sm hover:!shadow-primary-glow-md focus:!ring-ring text-center"
                     />
                   </FormControl>
-                  <FormMessage className="text-accent" />
+                  <FormMessage className="text-accent text-center" />
                 </FormItem>
               )}
             />
@@ -242,27 +232,11 @@ export default function ArbitrageForm() {
             ) : isExecuted ? (
               <><RotateCcw className="h-6 w-6" /> Reset</>
             ) : (
-              <><BarChartBig className="h-6 w-6" /> { watchGasFeeAmount && !watchAmountFrom ? 'Get Suggestion & Execute' : 'Execute'}</>
+              <><BarChartBig className="h-6 w-6" /> Execute</>
             )}
           </Button>
         </form>
       </Form>
-      
-      {/* SuggestionDisplay can be shown here if needed, or integrated into profit display */}
-      {/* <SuggestionDisplay suggestion={suggestion} isLoading={isLoading} error={error} /> */}
-      { suggestion && !isLoading && !error && (
-        <div className="mt-4 w-full p-4 border-2 border-primary rounded-lg shadow-primary-glow-md bg-background/50 space-y-2">
-            <h3 className="text-lg font-semibold text-primary text-center">AI Strategy Explanation:</h3>
-            <p className="text-sm text-foreground/80">{suggestion.strategyExplanation}</p>
-        </div>
-      )}
-       { error && !isLoading && (
-        <div className="mt-4 w-full p-4 border-2 border-accent rounded-lg shadow-accent-glow-sm bg-background/50">
-            <h3 className="text-lg font-semibold text-accent text-center">Error:</h3>
-            <p className="text-sm text-accent/80">{error}</p>
-        </div>
-      )}
-
     </>
   );
 }

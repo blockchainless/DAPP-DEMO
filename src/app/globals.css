@@ -81,7 +81,7 @@
     box-sizing: border-box;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground text-center;
     font-family: theme('fontFamily.body');
     margin: 0;
   }
@@ -99,6 +99,21 @@
   ::placeholder {
     color: hsl(var(--primary) / 0.7);
     opacity: 1; /* Firefox */
+    @apply text-center;
+  }
+  /* Ensure select dropdown text is centered */
+  select {
+    text-align-last: center; /* For Firefox */
+    -moz-text-align-last: center; /* For Firefox */
+  }
+  option {
+    text-align: left; /* Keep option text left-aligned or center if preferred */
+     /* text-align: center; */ /* Uncomment if options should also be centered */
+  }
+
+  /* Ensure ShadCN SelectTrigger value is centered */
+  [data-radix-select-trigger] > span {
+    @apply mx-auto;
   }
 }
 
@@ -144,4 +159,16 @@
 }
 .icon-glow-accent svg {
   filter: drop-shadow(0 0 5px hsl(var(--accent)));
+}
+
+/* Centering for form items and labels */
+.form-item-center, .form-item-center > label, .form-item-center > div {
+  @apply text-center;
+}
+.form-item-center > div > input, .form-item-center > div > button, .form-item-center > div > div[role="combobox"] {
+  @apply text-center;
+}
+/* Specific for ShadCN Select Value to be centered */
+.form-item-center .custom-btn[data-radix-select-trigger] span {
+  @apply flex-1 text-center;
 }

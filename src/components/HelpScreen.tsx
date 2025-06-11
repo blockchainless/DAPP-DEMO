@@ -8,7 +8,7 @@ interface HelpScreenProps {
 
 export default function HelpScreen({ onReturnToMain }: HelpScreenProps) {
   return (
-    <div className="w-full max-w-2xl text-foreground p-5 space-y-5">
+    <div className="w-full max-w-2xl text-foreground p-5 space-y-5 text-center">
       <h1 className="page-title !text-3xl !mb-5">D-0-X Mobile</h1>
       <h2 className="text-2xl font-headline text-primary text-center" style={{ textShadow: '0 0 15px hsl(var(--primary))' }}>
         D-0-X Mobile - DeFi Arbitrage Platform
@@ -23,7 +23,7 @@ export default function HelpScreen({ onReturnToMain }: HelpScreenProps) {
       
       <div>
         <p className="font-bold text-lg">How it works:</p>
-        <ul className="list-disc list-inside text-foreground/80 space-y-1 pl-4">
+        <ul className="list-disc list-inside text-foreground/80 space-y-1 pl-4 inline-block text-left">
           <li><strong>Network Selection:</strong> Choose your preferred blockchain network (Ethereum, Arbitrum, Polygon, etc.)</li>
           <li><strong>Borrowing Protocol:</strong> Select a lending protocol to borrow funds for larger arbitrage opportunities</li>
           <li><strong>DEX Selection:</strong> Pick two exchanges where you want to execute the arbitrage trade</li>
@@ -36,9 +36,9 @@ export default function HelpScreen({ onReturnToMain }: HelpScreenProps) {
       <div>
         <p className="font-bold text-lg">Smart Gas Fee System:</p>
         <p className="text-foreground/80">Our platform features an intelligent gas fee calculator that works two ways:</p>
-        <ul className="list-disc list-inside text-foreground/80 space-y-1 pl-4">
+        <ul className="list-disc list-inside text-foreground/80 space-y-1 pl-4 inline-block text-left">
           <li>Enter your trade amounts first → See calculated gas fees</li>
-          <li>Set your gas budget first → Get suggested trade amounts that fit your budget (AI Powered)</li>
+          <li>Set your gas budget first → Get suggested trade amounts that fit your budget</li>
         </ul>
       </div>
 

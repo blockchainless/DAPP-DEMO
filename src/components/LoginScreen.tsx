@@ -2,7 +2,7 @@
 
 import type { WalletState } from '@/app/page';
 import { WALLET_CONNECT_OPTIONS } from '@/lib/constants';
-import { Button } from '@/components/ui/button'; // Using ShadCN Button for consistency
+import { Button } from '@/components/ui/button'; 
 import { useEffect, useState } from 'react';
 
 interface LoginScreenProps {
@@ -17,11 +17,10 @@ export default function LoginScreen({ onConnect, walletStatus, statusType, conne
 
   useEffect(() => {
     if (connectedAddress) {
-      // Format address to be shorter for display if it's a full address
-      if (connectedAddress.length > 20) { // Basic check for a long address string
+      if (connectedAddress.length > 20) { 
          setDisplayAddress(`${connectedAddress.substring(0, 6)}...${connectedAddress.substring(connectedAddress.length - 4)}`);
       } else {
-        setDisplayAddress(connectedAddress); // Use as is if short (e.g. simulated random string)
+        setDisplayAddress(connectedAddress);
       }
     } else {
       setDisplayAddress(null);
@@ -29,7 +28,7 @@ export default function LoginScreen({ onConnect, walletStatus, statusType, conne
   }, [connectedAddress]);
   
   return (
-    <div className="flex flex-col items-center justify-center w-full max-w-sm mx-auto">
+    <div className="flex flex-col items-center justify-center w-full max-w-sm mx-auto text-center">
       <div 
         className="flex flex-col items-center gap-6 p-8 border-2 border-primary rounded-2xl bg-background/80 shadow-primary-glow-md"
         style={{ backdropFilter: 'blur(5px)' }}
@@ -59,9 +58,9 @@ export default function LoginScreen({ onConnect, walletStatus, statusType, conne
             ${statusType === 'error' ? 'border-red-500 text-red-400 bg-red-500/10 shadow-[0_0_10px_#f00]' : ''}
             ${statusType === 'connecting' ? 'border-primary text-primary bg-primary/10' : ''}
           `}>
-            <p>{walletStatus}</p>
+            <p className="text-center">{walletStatus}</p>
             {statusType === 'connected' && displayAddress && (
-              <div className="mt-2 p-2 text-xs bg-primary/10 border border-primary rounded-md font-code break-all">
+              <div className="mt-2 p-2 text-xs bg-primary/10 border border-primary rounded-md font-code break-all text-center">
                 Address: {displayAddress}
               </div>
             )}
