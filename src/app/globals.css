@@ -116,10 +116,10 @@
     @apply mx-auto;
   }
 
-  /* Hide scroll up/down chevrons in ShadCN Select dropdowns */
-  [data-radix-select-scroll-up-button] svg,
-  [data-radix-select-scroll-down-button] svg {
-    @apply hidden;
+  /* Hide scroll up/down chevrons AND BUTTONS in ShadCN Select dropdowns */
+  [data-radix-select-scroll-up-button],
+  [data-radix-select-scroll-down-button] {
+    display: none !important;
   }
 
   /* Force hide the chevron icon on custom-styled select triggers */
@@ -185,3 +185,4 @@
 }
 
     
+
