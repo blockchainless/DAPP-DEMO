@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -58,7 +59,7 @@ export default function HomePage() {
     // Simulate connection
     // Actual Web3 connection logic would go here
     if (provider === 'MetaMask') {
-      if (typeof window.ethereum !== 'undefined') {
+      if (typeof window.ethereum !== 'undefined' && typeof window.ethereum.request === 'function') {
         try {
           const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
           setWalletState({
@@ -137,10 +138,7 @@ export default function HomePage() {
 
       {currentView === 'app' && (
          <footer className="w-full mt-10 py-8 text-center text-muted-foreground text-sm">
-            <p>&copy; {new Date().getFullYear()} D-0-X Mobile. All rights reserved.</p>
-            <p className="font-code text-xs mt-1">
-              Disclaimer: Trading cryptocurrencies involves significant risk. Use this tool at your own discretion.
-            </p>
+            <p>&copy; 2025 D-0-X Mobile. All rights reserved.</p>
         </footer>
       )}
     </div>
