@@ -115,6 +115,12 @@
   [data-radix-select-trigger] > span {
     @apply mx-auto;
   }
+
+  /* Hide scroll up/down chevrons in ShadCN Select dropdowns */
+  [data-radix-select-scroll-up-button] svg,
+  [data-radix-select-scroll-down-button] svg {
+    @apply hidden;
+  }
 }
 
 /* Glow animations from PRD, slightly adapted for more intensity if needed */
@@ -172,3 +178,5 @@
 .form-item-center .custom-btn[data-radix-select-trigger] span {
   @apply flex-1 text-center;
 }
+
+    
