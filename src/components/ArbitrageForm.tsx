@@ -266,7 +266,7 @@ export default function ArbitrageForm() {
                                else if (gasValue <= 50) suggestedAmount = 2000;
                                else suggestedAmount = 5000;
                                form.setValue('amountFrom', suggestedAmount, { shouldValidate: true });
-                               form.setValue('amountTo', suggestedAmount, { shouldValidate: true }); // Also set amountTo
+                               form.setValue('amountTo', suggestedAmount, { shouldValidate: true }); 
                            }
                         }
                       }}
@@ -301,3 +301,4 @@ export default function ArbitrageForm() {
     </>
   );
 }
+
