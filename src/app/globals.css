@@ -107,8 +107,7 @@
     -moz-text-align-last: center; /* For Firefox */
   }
   option {
-    text-align: left; /* Keep option text left-aligned or center if preferred */
-     /* text-align: center; */ /* Uncomment if options should also be centered */
+     text-align: center; 
   }
 
   /* Ensure ShadCN SelectTrigger value is centered */
@@ -125,6 +124,18 @@
   /* Force hide the chevron icon on custom-styled select triggers */
   .custom-btn[data-radix-select-trigger] > svg {
     display: none !important;
+  }
+
+  /* Hide arrows from number inputs in WebKit browsers (Chrome, Safari, Edge) */
+  input[type=number]::-webkit-inner-spin-button,
+  input[type=number]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  /* Hide arrows from number inputs in Firefox */
+  input[type=number] {
+    -moz-appearance: textfield;
   }
 }
 
@@ -185,4 +196,5 @@
 }
 
     
+
 
