@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -26,10 +27,11 @@ const formSchema = z.object({
   arbitrageCoinFrom: z.string().min(1, "Source coin is required."),
   arbitrageCoinTo: z.string().min(1, "Target coin is required."),
   amountFrom: z.coerce.number().positive("Amount must be positive.").optional(),
+  amountTo: z.coerce.number().positive("Amount must be positive.").optional(), // New field for target amount
   gasFeeAmount: z.coerce.number().positive("Gas fee budget must be positive.").optional(),
-}).refine(data => data.amountFrom || data.gasFeeAmount, {
-  message: "Either Amount or Gas Fee Budget must be provided.",
-  path: ["amountFrom"],
+}).refine(data => data.amountFrom || data.amountTo || data.gasFeeAmount, {
+  message: "Either Source Amount, Target Amount, or Gas Fee Budget must be provided.",
+  path: ["amountFrom"], // Error shown under the first amount field or gas fee if both amounts are empty
 }).refine(data => data.arbitrageCoinFrom !== data.arbitrageCoinTo, {
   message: "Source and Target coins must be different.",
   path: ["arbitrageCoinTo"],
@@ -41,7 +43,7 @@ const formSchema = z.object({
 type ArbitrageFormValues = z.infer<typeof formSchema>;
 
 export default function ArbitrageForm() {
-  const [isLoading, setIsLoading] = useState(false); // Kept for simulating processing
+  const [isLoading, setIsLoading] = useState(false);
   const [isExecuted, setIsExecuted] = useState(false);
   const [estimatedProfitDisplay, setEstimatedProfitDisplay] = useState<string>('$0.00');
   const [gasFeeDisplay, setGasFeeDisplay] = useState<string>('$0.00');
@@ -58,51 +60,84 @@ export default function ArbitrageForm() {
       arbitrageToSwap: ARBITRAGE_TO_SWAP_OPTIONS[0]?.value || '',
       arbitrageCoinFrom: COIN_OPTIONS[0]?.value || '',
       arbitrageCoinTo: COIN_OPTIONS[1]?.value || '',
+      amountFrom: undefined,
+      amountTo: undefined,
+      gasFeeAmount: undefined,
     },
   });
 
-  const watchAmountFrom = form.watch('amountFrom');
-  const watchedCoinFrom = form.watch('arbitrageCoinFrom');
-  // const watchGasFeeAmount = form.watch('gasFeeAmount'); // Not directly used in button text anymore
+  const watchedFormValues = form.watch();
+  const watchedCoinFromLabel = COIN_OPTIONS.find(c => c.value === watchedFormValues.arbitrageCoinFrom)?.label;
+  const watchedCoinToLabel = COIN_OPTIONS.find(c => c.value === watchedFormValues.arbitrageCoinTo)?.label;
 
   useEffect(() => {
-    const currentAmountFrom = form.getValues('amountFrom');
-    const currentNetwork = form.getValues('network');
-    const currentArbitrageFromSwap = form.getValues('arbitrageFromSwap');
-    const currentArbitrageToSwap = form.getValues('arbitrageToSwap');
-    const currentCoinFrom = form.getValues('arbitrageCoinFrom');
-    const currentCoinTo = form.getValues('arbitrageCoinTo');
+    const {
+      amountFrom: currentAmountFrom,
+      amountTo: currentAmountTo,
+      network: currentNetwork,
+      arbitrageFromSwap: currentArbitrageFromSwap,
+      arbitrageToSwap: currentArbitrageToSwap,
+      arbitrageCoinFrom: currentCoinFrom,
+      arbitrageCoinTo: currentCoinTo,
+      gasFeeAmount: currentGasFeeAmount
+    } = watchedFormValues;
+
+    const shouldShowGasInput = !(currentAmountFrom && currentAmountFrom > 0) && !(currentAmountTo && currentAmountTo > 0);
+    if (showGasInput !== shouldShowGasInput) {
+      setShowGasInput(shouldShowGasInput);
+    }
     
-    if (currentAmountFrom && currentAmountFrom > 0) {
-      setShowGasInput(false);
+    const tradeAmount = (currentAmountFrom && currentAmountFrom > 0) ? currentAmountFrom : ((currentAmountTo && currentAmountTo > 0) ? currentAmountTo : 0);
+    
+    let calculatedGasFeeValue = 0;
+    if (!shouldShowGasInput) {
       const networkFee = currentNetwork === 'ethereum' ? 50 : (currentNetwork === 'arbitrum' || currentNetwork === 'optimism' ? 5 : (currentNetwork === 'polygon' ? 1 : 10));
-      const dexFee = (currentArbitrageFromSwap && currentArbitrageToSwap && currentAmountFrom > 0) ? ((currentArbitrageFromSwap === 'uniswap' || currentArbitrageToSwap === 'uniswap') ? 0.003 * currentAmountFrom : 0.002 * currentAmountFrom) : 0;
-      const totalFees = networkFee + dexFee;
-      setGasFeeDisplay(`$${totalFees.toFixed(2)}`);
+      const dexFee = (currentArbitrageFromSwap && currentArbitrageToSwap && tradeAmount > 0) ? 
+                     ((currentArbitrageFromSwap === 'uniswap' || currentArbitrageToSwap === 'uniswap') ? 0.003 * tradeAmount : 0.002 * tradeAmount) 
+                     : 0;
+      calculatedGasFeeValue = networkFee + dexFee;
+      const newGasFeeDisplay = `$${calculatedGasFeeValue.toFixed(2)}`;
+      if (gasFeeDisplay !== newGasFeeDisplay) {
+        setGasFeeDisplay(newGasFeeDisplay);
+      }
     } else {
-      setShowGasInput(true);
-      setGasFeeDisplay('$0.00');
+      if (gasFeeDisplay !== '$0.00') {
+        setGasFeeDisplay('$0.00');
+      }
     }
 
     let priceDiff = 0;
     if (currentCoinFrom && currentCoinTo && currentCoinFrom !== currentCoinTo) {
-      priceDiff = (currentArbitrageFromSwap === 'uniswap' && currentArbitrageToSwap === 'sushiswap') ? 0.05 : 0.03;
+      priceDiff = (currentArbitrageFromSwap === 'uniswap' && currentArbitrageToSwap === 'sushiswap') ? 0.05 : 0.03; // Simplified
     }
-    const grossProfit = (currentAmountFrom || 0) * priceDiff;
-    const gasFeeNumber = parseFloat(gasFeeDisplay.replace(/[^0-9.]/g, '')) || parseFloat(form.getValues('gasFeeAmount')?.toString() || '0') || 0;
+    const grossProfit = tradeAmount * priceDiff;
     
-    setEstimatedProfitDisplay(`$${(grossProfit - gasFeeNumber).toFixed(2)}`);
+    const gasFeeForProfitCalc = shouldShowGasInput ? (currentGasFeeAmount || 0) : calculatedGasFeeValue;
+    
+    const newEstimatedProfitDisplay = `$${(grossProfit - gasFeeForProfitCalc).toFixed(2)}`;
+    if (estimatedProfitDisplay !== newEstimatedProfitDisplay) {
+      setEstimatedProfitDisplay(newEstimatedProfitDisplay);
+    }
 
-  }, [form, gasFeeDisplay]); // Re-run when form values affecting fees/profit change
+  }, [watchedFormValues, showGasInput, gasFeeDisplay, estimatedProfitDisplay, setShowGasInput, setGasFeeDisplay, setEstimatedProfitDisplay]);
+
 
   const handleFormSubmit = async (values: ArbitrageFormValues) => {
     if (isExecuted) {
-      form.reset();
+      form.reset({ // Reset with default values, explicitly undefined for optionals
+          network: NETWORK_OPTIONS[0]?.value || '',
+          borrowingProtocol: BORROWING_PROTOCOL_OPTIONS[0]?.value || '',
+          arbitrageFromSwap: ARBITRAGE_FROM_SWAP_OPTIONS[0]?.value || '',
+          arbitrageToSwap: ARBITRAGE_TO_SWAP_OPTIONS[0]?.value || '',
+          arbitrageCoinFrom: COIN_OPTIONS[0]?.value || '',
+          arbitrageCoinTo: COIN_OPTIONS[1]?.value || '',
+          amountFrom: undefined,
+          amountTo: undefined,
+          gasFeeAmount: undefined,
+      });
       setIsLoading(false);
       setIsExecuted(false);
-      setEstimatedProfitDisplay('$0.00');
-      setGasFeeDisplay('$0.00');
-      setShowGasInput(true);
+      // States like estimatedProfitDisplay, gasFeeDisplay, showGasInput will be reset by useEffect
       toast({ title: "Form Reset", description: "Ready for new arbitrage configuration." });
       return;
     }
@@ -114,7 +149,7 @@ export default function ArbitrageForm() {
       setIsExecuted(true);
       toast({
         title: "Arbitrage Executed! (Simulated)",
-        description: "Your trade has been processed.",
+        description: `Trade for ${values.amountFrom ? values.amountFrom : values.amountTo} ${values.amountFrom ? values.arbitrageCoinFrom : values.arbitrageCoinTo} processed.`,
       });
     }, 1500);
   };
@@ -127,7 +162,6 @@ export default function ArbitrageForm() {
           <FormItem className="w-full form-item-center">
             <Select onValueChange={(value) => {
                 field.onChange(value);
-                form.trigger(); // Trigger re-validation and re-calculation
             }} defaultValue={field.value}>
               <FormControl>
                 <SelectTrigger className="custom-btn !text-left !justify-between !text-base !text-primary !bg-background !border !border-primary !shadow-primary-glow-sm hover:!shadow-primary-glow-md focus:!ring-ring">
@@ -167,11 +201,35 @@ export default function ArbitrageForm() {
                 <FormControl>
                   <Input 
                     type="number" 
-                    placeholder={`Enter amount (${watchedCoinFrom || COIN_OPTIONS.find(c => c.value === form.getValues().arbitrageCoinFrom)?.label || 'Source Coin'})`}
+                    placeholder={`Enter amount (${watchedCoinFromLabel || 'Source Coin'})`}
                     {...field} 
+                    value={field.value ?? ""}
                     onChange={e => {
-                        field.onChange(parseFloat(e.target.value));
-                        form.trigger(); // Trigger re-validation and re-calculation
+                        const val = e.target.value;
+                        field.onChange(val === "" ? undefined : parseFloat(val));
+                    }}
+                    className="custom-btn !text-base !text-primary !bg-background !border !border-primary !shadow-primary-glow-sm hover:!shadow-primary-glow-md focus:!ring-ring text-center"
+                  />
+                </FormControl>
+                <FormMessage className="text-accent text-center" />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="amountTo"
+            render={({ field }) => (
+              <FormItem className="w-full form-item-center">
+                <FormControl>
+                  <Input 
+                    type="number" 
+                    placeholder={`Enter amount (${watchedCoinToLabel || 'Target Coin'})`}
+                    {...field} 
+                    value={field.value ?? ""}
+                    onChange={e => {
+                      const val = e.target.value;
+                      field.onChange(val === "" ? undefined : parseFloat(val));
                     }}
                     className="custom-btn !text-base !text-primary !bg-background !border !border-primary !shadow-primary-glow-sm hover:!shadow-primary-glow-md focus:!ring-ring text-center"
                   />
@@ -192,22 +250,25 @@ export default function ArbitrageForm() {
                       type="number" 
                       placeholder="Enter gas fee budget (USD)" 
                       {...field} 
+                      value={field.value ?? ""}
                       onChange={e => {
-                        field.onChange(parseFloat(e.target.value));
-                         form.trigger(); // Trigger re-validation and re-calculation
-                         // If gas fee is entered and no amount, simulate adjustArbitrage logic from HTML
-                         const currentAmountFrom = form.getValues('amountFrom');
-                         if (!currentAmountFrom || currentAmountFrom <= 0) {
-                            const gasValue = parseFloat(e.target.value);
-                            if (gasValue > 0) {
-                                let suggestedAmount = 0;
-                                if (gasValue <= 10) suggestedAmount = 500;
-                                else if (gasValue <= 50) suggestedAmount = 2000;
-                                else suggestedAmount = 5000;
-                                form.setValue('amountFrom', suggestedAmount, { shouldValidate: true });
-                                setShowGasInput(false); // Hide gas input as amount is now set
-                            }
-                         }
+                        const val = e.target.value;
+                        const gasValue = val === "" ? undefined : parseFloat(val);
+                        field.onChange(gasValue);
+                        
+                        const currentAmountFrom = form.getValues('amountFrom');
+                        const currentAmountTo = form.getValues('amountTo');
+
+                        if ((!currentAmountFrom || currentAmountFrom <= 0) && (!currentAmountTo || currentAmountTo <= 0)) {
+                           if (gasValue && gasValue > 0) {
+                               let suggestedAmount = 0;
+                               if (gasValue <= 10) suggestedAmount = 500;
+                               else if (gasValue <= 50) suggestedAmount = 2000;
+                               else suggestedAmount = 5000;
+                               form.setValue('amountFrom', suggestedAmount, { shouldValidate: true });
+                               form.setValue('amountTo', suggestedAmount, { shouldValidate: true });
+                           }
+                        }
                       }}
                       className="custom-btn !text-base !text-primary !bg-background !border !border-primary !shadow-primary-glow-sm hover:!shadow-primary-glow-md focus:!ring-ring text-center"
                     />
