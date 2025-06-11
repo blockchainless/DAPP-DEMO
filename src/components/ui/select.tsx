@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -83,7 +84,7 @@ const SelectContent = React.forwardRef<
       position={position}
       {...props}
     >
-      <SelectScrollUpButton />
+      {/* <SelectScrollUpButton /> */} {/* REMOVED SCROLL UP BUTTON */}
       <SelectPrimitive.Viewport
         className={cn(
           "p-1",
@@ -93,7 +94,7 @@ const SelectContent = React.forwardRef<
       >
         {children}
       </SelectPrimitive.Viewport>
-      <SelectScrollDownButton />
+      {/* <SelectScrollDownButton /> */} {/* REMOVED SCROLL DOWN BUTTON */}
     </SelectPrimitive.Content>
   </SelectPrimitive.Portal>
 ))
